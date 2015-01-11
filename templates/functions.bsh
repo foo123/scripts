@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+
+#
+# Bash Ubuntu / Debian (mostly)
+# 
+# @Nikos M. http://nikos-web-development.netai.net/ , https://github.com/foo123/
+#
+
+#
+# Functions to handle and render templates
+#
+
+
+# parse a template and return it
+# 1st arg is template tags [array]
+# 2nd arg is replacement values for template tags [array]
+# 3rd arg is template file path
+# usage: TT=$(parseTemplate TAGS[@] REPLACE[@] $MAIL_TEMPLATE); echo $TT;
+function parseTemplate()
+{
+    local _TAG=("${!1}")
+    local _REPLACE=("${!2}")
+    local _TEMPLATE="${3}"
+    local _PATTERN=""
+    local i
+    
+    if [[ ${#_TAG[@]} > 0 ]]; then
+        _PATTERN="-e s#\%\%${_TAG[0]}\%\%#${_REPLACE[0]}#g"
+        for (( i = 1 ; i < ${#_TAG[@]} ; i++ ))
+        do
+            _PATTERN="${_PATTERN}; s#\%\%${_TAG[${i}]}\%\%#${_REPLACE[${i}]}#g"
+        done
+        
+        local SED=`which sed`
+        $SED "${_PATTERN}" < "${_TEMPLATE}"
+    else
+        local CAT=`which cat`
+        $CAT "${_TEMPLATE}"
+    fi
+}
+
+# render a template into a file
+# 1st arg is template tags [array]
+# 2nd arg is replacement values for template tags [array]
+# 3rd arg is template file path
+# 4th arg is file to write to
+# usage: renderTemplate TAGS[@] REPLACE[@] $MAIL_TEMPLATE $MAIL_FILE
+function renderTemplate()
+{
+    local _TAG=("${!1}")
+    local _REPLACE=("${!2}")
+    local _TEMPLATE="${3}"
+    local _FILE="${4}"
+    local _RESULT 
+    _RESULT=$(parseTemplate _TAG[@] _REPLACE[@] $_TEMPLATE)
+    echo -n "${_RESULT}" > "${_FILE}"
+}
+
+# good to return 0 here
+return 0

@@ -1,0 +1,264 @@
+#!/usr/bin/env bash
+
+#
+# Bash Ubuntu / Debian (mostly)
+# 
+# @Nikos M. http://nikos-web-development.netai.net/ , https://github.com/foo123/
+#
+
+#
+# Functions to handle MySQL Databases and users
+#
+
+# exit script with error
+function _die()
+{
+    echo "ERROR: ${1:-'Unknown Error'}" 1>&2; exit ${2:-1}
+}
+
+# create database
+# 1st arg is DB name
+# 2nd arg is USER name (ROOT)
+# 3rd arg is USER password (ROOT)
+function createDB()
+{
+    local MYSQL=`which mysql`
+    local _DB="${1}"
+    local _ROOT="${2}"
+    local _ROOTPASS="${3}"
+    local _Q1="CREATE DATABASE IF NOT EXISTS ${_DB};"
+    local _Q6="FLUSH PRIVILEGES;"
+    local _SQL="${_Q1}${_Q6}"
+    $MYSQL -u "${_ROOT}" -p"${_ROOTPASS}" -e "${_SQL}" || _die 'Cannot Create DB'
+}
+
+# create database user
+# 1st arg is DB name
+# 2nd arg is DB user
+# 3rd arg is DB password
+# 4th arg is ROOT USER name (ROOT)
+# 5th arg is ROOT USER password
+function createDBUser()
+{
+    local MYSQL=`which mysql`
+    local _DB="${1}"
+    local _DBUSER="${2}"
+    local _DBPASS="${3}"
+    local _ROOT="${4}"
+    local _ROOTPASS="${5}"
+    local _Q2="DROP USER '${_DBUSER}'@'localhost';FLUSH PRIVILEGES;"
+    local _Q3="CREATE USER '${_DBUSER}'@'localhost' IDENTIFIED BY '${_DBPASS}';"
+    local _Q4="GRANT USAGE ON *.* TO '${_DBUSER}'@'localhost' IDENTIFIED BY '${_DBPASS}' WITH MAX_QUERIES_PER_HOUR 0 MAX_CONNECTIONS_PER_HOUR 0 MAX_UPDATES_PER_HOUR 0 MAX_USER_CONNECTIONS 0;"
+    local _Q5="GRANT ALL PRIVILEGES ON ${_DB}.* TO '${_DBUSER}'@'localhost';"
+    local _Q6="FLUSH PRIVILEGES;"
+    local _SQL="${_Q3}${_Q4}${_Q5}${_Q6}"
+    $MYSQL -u "${_ROOT}" -p"${_ROOTPASS}" -e "${_SQL}" || _die 'Cannot Create DB USER'
+}
+
+# create database and database user
+# 1st arg is DB name
+# 2nd arg is DB user
+# 3rd arg is DB password
+# 4th arg is ROOT USER name (ROOT)
+# 5th arg is ROOT USER password
+function createDBAndUser()
+{
+    local _DB="${1}"
+    local _DBUSER="${2}"
+    local _DBPASS="${3}"
+    local _ROOT="${4}"
+    local _ROOTPASS="${5}"
+    
+    createDB "$_DB" "$_ROOT" "$_ROOTPASS" && createDBUser "$_DB" "$_DBUSER" "$_DBPASS" "$_ROOT" "$_ROOTPASS"
+}
+
+# delete database
+# 1st arg is DB name
+# 2nd arg is USER name (ROOT)
+# 3rd arg is USER password (ROOT)
+function removeDB()
+{
+    local _DB="${1}"
+    local _ROOT="${2}"
+    local _ROOTPASS="${3}"
+    local MYSQL=`which mysql`
+    local Q2="DROP DATABASE IF EXISTS ${_DB};"
+    local SQL="${Q2}"
+    $MYSQL -u "${_ROOT}" -p"${_ROOTPASS}" -e "${SQL}" || _die 'Cannot Remove DB'
+}
+
+# delete databases
+# 1st arg is DB name prefix
+# 2nd arg is USER name (ROOT)
+# 3rd arg is USER password (ROOT)
+function removeDBs()
+{
+    local _DB="${1}"
+    local _ROOT="${2}"
+    local _ROOTPASS="${3}"
+    local MYSQL=`which mysql`
+    #$MYSQL -u${_DBUSER} -p  -e "show databases" | grep -v Database | grep -v mysql| grep -v information_schema| grep -v test | grep -v OLD |gawk '{print "drop database " $1 ";select sleep(0.1);"}' | mysql -uroot -ppassword
+    $MYSQL -u${_ROOT} -p${_ROOTPASS}  -e "show databases like ${_DB}\%" | gawk '{print "drop database " $1 ";select sleep(0.1);"}' | $MYSQL -u${_ROOT} -p${_ROOTPASS}
+}
+
+# delete database user
+# 1st arg is DB name
+# 2nd arg is DB user
+# 3rd arg is ROOT USER name
+# 4th arg is ROOT USER password
+function removeDBUser()
+{
+    local _DB="${1}"
+    local _DBUSER="${2}"
+    local _ROOT="${3}"
+    local _ROOTPASS="${4}"
+    local MYSQL=`which mysql`
+    local Q1="DROP USER '${_DBUSER}'@'localhost';FLUSH PRIVILEGES;"
+    local SQL="${Q1}"
+    $MYSQL -u "${_ROOT}" -p"${_ROOTPASS}" -e "${SQL}" || _die 'Cannot Remove DB User'
+}
+
+# delete database and database user
+# 1st arg is DB name
+# 2nd arg is DB user
+# 3rd arg is ROOT USER name
+# 4th arg is ROOT USER password
+function removeDBAndUser()
+{
+    local _DB="${1}"
+    local _DBUSER="${2}"
+    local _ROOT="${3}"
+    local _ROOTPASS="${4}"
+    
+    removeDB "$_DB" "$_ROOT" "$_ROOTPASS" && removeDBUser "$_DB" "$_DBUSER" "$_ROOT" "$_ROOTPASS"
+}
+
+# delete databases and database user
+# 1st arg is DB name prefix
+# 2nd arg is DB user
+# 3rd arg is ROOT USER name
+# 4th arg is ROOT USER password
+function removeDBsAndUser()
+{
+    local _DB="${1}"
+    local _DBUSER="${2}"
+    local _ROOT="${3}"
+    local _ROOTPASS="${4}"
+    
+    removeDBs "$_DB" "$_ROOT" "$_ROOTPASS" && removeDBUser "$_DB" "$_DBUSER" "$_ROOT" "$_ROOTPASS"
+}
+
+# dump and zip database
+# 1st arg is DB name
+# 2nd arg is DB user
+# 3rd arg in DB pass
+# 4th is output file
+function dumpDB()
+{
+  local MYSQLDUMP=`which mysqldump`
+  local _DB="${1}"
+  local _USER="${2}"
+  local _PASS="${3}"
+  local _OUTFILE="${4}"
+  
+  $MYSQLDUMP -u $_USER -p$_PASS $_DB | gzip -9 > $_OUTFILE
+}
+
+# optimize tables of a specific DB
+# 1st arg is DB 
+# 2nd arg is DB user (optional)
+# 3rd arg is DB pass (optional)
+function optimizeDBTables()
+{
+    if test $# -eq 3
+    then # user and pass provided
+        local MYSQL_LOGIN="-u $2 --password=$3"
+    elif test $# -eq 2
+    then # user and no pass provided
+        local MYSQL_LOGIN="-u $2"
+    else # no credentials provided, use default
+        local MYSQL_LOGIN="-u root"
+        echo "no username or pass provided. Using default options";
+        echo ""
+    fi
+     
+    local MYSQL=`which mysql`
+    local DB=$1
+
+    echo "Using database $DB"
+    local TABLES=`$MYSQL $MYSQL_LOGIN -e "USE $DB; SHOW TABLES;" | grep -v "Tables_in_"`
+    for table in $TABLES
+    do
+        echo " * Optimizing table $table ... "
+        $MYSQL $MYSQL_LOGIN -e "USE $DB; OPTIMIZE TABLE $table;"
+        echo "done."
+    done
+}
+
+# optimize all DB tables
+# 1st arg is DB user (optional)
+# 2nd arg is DB pass (optional)
+function optimizeAllTables()
+{
+    if test $# -eq 2
+    then # user and pass provided
+        local MYSQL_LOGIN="-u $1 --password=$2"
+    elif test $# -eq 1
+    then # user and no pass provided
+        local MYSQL_LOGIN="-u $1"
+    else # no credentials provided, use default
+        local MYSQL_LOGIN="-u root"
+        echo "no username or pass provided. Using default options";
+        echo ""
+    fi
+     
+    local MYSQL=`which mysql`
+    local DBS=`$MYSQL $MYSQL_LOGIN -e "SHOW DATABASES;" | grep -v -e "Database" -e "information_schema"`
+
+    for db in $DBS
+    do
+        local TABLES=`$MYSQL $MYSQL_LOGIN -e "USE $db; SHOW TABLES;" | grep -v "Tables_in_"`
+        echo "Switching to database $db"
+        for table in $TABLES
+        do
+            echo " * Optimizing table $table ... "
+            $MYSQL $MYSQL_LOGIN -e "USE $db; OPTIMIZE TABLE $table;"
+            echo "done."
+        done
+    done
+}
+
+# Set the DB engine to a whole DB
+# 1st arg is DB
+# 2nd arg is DB engine to be used
+# 3rd arg is DB user (optional)
+# 4th arg is DB pass (optional)
+function setDBEngine()
+{
+    if [ $# -ge 4 ]; then
+        # user and pass provided
+        local MYSQL_LOGIN="-u $3 --password=$4"
+    elif [ $# -eq 3 ]; then
+        # user and no pass provided
+        local MYSQL_LOGIN="-u $3"
+    else # no credentials provided, use default
+        local MYSQL_LOGIN="-u root"
+        echo "no username or pass provided. Using default options";
+        echo ""
+    fi
+     
+    local DB="$1"
+    local ENGINE="$2"
+    local MYSQL=`which mysql`
+    local TABLES=`$MYSQL $MYSQL_LOGIN -e "USE $DB; SELECT table_name FROM INFORMATION_SCHEMA.TABLES  WHERE TABLE_SCHEMA = '$DB' AND engine <> '$ENGINE';" | grep -v "Tables_in_"`
+    echo "Using database $DB"
+    for table in $TABLES
+    do
+        echo " * Altering engine for table $table ... "
+        $MYSQL $MYSQL_LOGIN -e "USE $db; ALTER TABLE $table ENGINE = $ENGINE;"
+        echo "done."
+    done
+}
+
+# good to return 0 here
+return 0

@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+
+#
+# Bash Ubuntu / Debian (mostly)
+# 
+# @Nikos M. http://nikos-web-development.netai.net/ , https://github.com/foo123/
+#
+
+#
+# Functions to handle users
+#
+
+# exit script with error
+function _die()
+{
+    echo "ERROR: ${1:-'Unknown Error'}" 1>&2; exit ${2:-1}
+}
+
+
+# create directory if not exists
+# 1st arg is directory path to check
+function createFolderIfNotExists()
+{
+    local _FOLDER="$1"
+    if [ ! -e "$_FOLDER" ]; then
+        mkdir -p "$_FOLDER"
+    fi
+}
+
+# check valid username
+function validUserName()
+{
+   local VALID="^[a-zA-Z][_a-zA-Z0-9]+$"
+   local USERNAME="$1"
+   
+   echo "$USERNAME" | grep -E "$VALID" > /dev/null
+   return $?
+}
+
+# check if user exists
+function userExists()
+{
+   local AWK=`which awk`
+   $AWK -F":" '{ print $1 }' /etc/passwd | grep -x "$1" > /dev/null
+   return $?
+}
+
+# get user home dir
+# http://stackoverflow.com/questions/7358611/bash-get-users-home-directory-when-they-run-a-script-as-root
+function getUserHome()
+{
+    local USER_HOME=$(getent passwd "$1" | cut -d: -f6)
+    echo "$USER_HOME"
+}
+
+function getUserFolder()
+{
+    local USER_HOME=$(getent passwd "$1" | cut -d: -f6)
+    local USER_FOLDER=$(basename "$USER_HOME")
+    echo "$USER_FOLDER"
+}
+
+# Generate a random password (alphanumeric)
+#  $1 = number of characters; defaults to 32
+function generateRandomPassword() 
+{
+    local _CHAR="a-zA-Z0-9_@" # "[:alnum:]", include some special chars as well
+    local CAT=`which cat`
+    $CAT /dev/urandom | tr -cd "${_CHAR}" | head -c ${1:-32}
+}
+
+# create user
+# 1st arg is user name
+# 2nd arg is password
+# 3rd arg is home directory
+function createUser()
+{
+    local _SHELL="/bin/bash"
+    local _USER="${1}"
+    local _PASS="${2}"
+    local _HOME="${3}"
+    local _GROUP="${_USER}"
+    local USERADD=`which useradd`
+    # local GROUPADD=`which groupadd`
+    local PASSWD=`which passwd`
+    
+    # Create the user
+    # $GROUPADD "${_GROUP}"
+    $USERADD --home-dir "${_HOME}" --shell ${_SHELL} --create-home "${_USER}" || _die 'Cannot Create User'
+    $PASSWD "${_USER}" <<EOF &> /dev/null
+${_PASS}
+${_PASS}
+EOF
+}
+
+# delete user
+# 1st arg is user name
+# 2nd arg is group
+function removeUser()
+{
+    local USER="${1}"
+    local GROUP="${2}"
+    local DELUSER=`which deluser`
+    local DELGROUP=`which delgroup`
+
+    $DELUSER --remove-home "${USER}" || _die 'Cannot Delete User'
+    # $DELGROUP --only-if-empty "${GROUP}" &> /dev/null
+    $DELGROUP "${GROUP}" &> /dev/null
+}
+
+# append text line to file if not exists already
+# 1st arg is line
+# 2nd arg is file to append to
+function appendLine()
+{
+    local _LINE="$1"
+    local _FILE="$2"
+    local FGREP=`which fgrep`
+
+    $FGREP -xq "${_LINE}" "${_FILE}" || echo "${_LINE}" >> "${_FILE}"
+}
+
+# append text line to file if not exists already
+# 1st arg is line
+# 2nd arg is file to prepend to
+function prependLine()
+{
+    (tmpfile=`mktemp` && { echo "$1" | cat - "$2" > $tmpfile && mv $tmpfile "$2"; } )
+}
+
+# remove text line from file
+# 1st arg is line
+# 2nd arg is file to remove from
+function removeLine()
+{
+    local _LINE="$1"
+    local _FILE="$2"
+    local SED=`which sed`
+    $SED -ie "\|^${_LINE}\$|d" "${_FILE}"
+}
+
+# sets users umask, by appending to .bashrc file
+# 1st arg is user
+# 2nd arg is umask to use
+function setUserUmask()
+{
+    local _USER="$1"
+    local _MASK="$2"
+    
+    prependLine "umask ${_MASK}" /home/${_USER}/.bashrc
+}
+
+# good to return 0 here
+return 0

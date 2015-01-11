@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+
+#
+# Bash Ubuntu / Debian (mostly)
+# 
+# @Nikos M. http://nikos-web-development.netai.net/ , https://github.com/foo123/
+#
+
+#
+# Script to set MySQL user password (eg for root)
+#
+
+# stop mysql
+# /etc/init.d/mysql stop
+# MYSQL_SAFE=`which mysqld_safe`
+# MYSQL=`which mysql`
+# $MYSQL_SAFE --skip-grant-tables --skip-networking &
+# $MYSQL -u root -e "USE mysql;UPDATE user SET password=PASSWORD('$1') WHERE User='root';FLUSH PRIVILEGES;" 
+# /etc/init.d/mysql restart
+# reset script
+#MYSQL_ADMIN=`which mysqladmin`
+#$MYSQL_ADMIN -u root password ""
+#/etc/init.d/mysql restart
+#mysql mysql -uroot
+
+# MYSQL_SAFE=`which mysqld_safe`
+# /etc/init.d/mysql stop
+# echo "UPDATE mysql.user SET Password=PASSWORD('$1') WHERE User='root';FLUSH PRIVILEGES;" > /tmp/reset-pass.sql
+# ${MYSQL_SAFE} --skip-grant-tables --skip-networking --init-file=/tmp/reset-pass.sql &
+# sleep 10
+# rm /tmp/reset-pass.sql
+# /etc/init.d/mysql restart
+
+#killall -15 mysqld
+# /etc/init.d/mysql stop
+# echo "UPDATE mysql.user SET Password=PASSWORD('$1') WHERE User='root';" | mysqld --bootstrap
+# sleep 10
+# /etc/init.d/mysql restart
+
+
+# Kill any mysql processes currently running
+echo 'Shutting down any mysql processes...'
+/etc/init.d/mysql stop
+killall -vw mysqld
+
+MYSQLS=`which mysqld_safe`
+# Start mysql without grant tables
+$MYSQLS --skip-grant-tables --skip-networking >res 2>&1 &
+ 
+echo 'Resetting password...'
+ 
+#Sleep for 5 while the new mysql process loads (if get a connection error you might need to increase this.
+sleep 10
+
+MYSQL=`which mysql`
+#Update user with new password
+$MYSQL -e "USE mysql;UPDATE user SET Password=PASSWORD('$2') WHERE User='$1';FLUSH PRIVILEGES;"
+ 
+echo 'Cleaning up..'
+ 
+#Kill the insecure mysql process
+killall -v mysqld
+/etc/init.d/mysql restart
