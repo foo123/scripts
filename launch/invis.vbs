@@ -1,7 +1,7 @@
 '
 'Windows .vbs file
 '
-'@Nikos M. http://nikos-web-development.netai.net/ , https://github.com/foo123/
+'https://github.com/foo123/scripts
 '
 '
 '

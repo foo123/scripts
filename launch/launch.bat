@@ -2,7 +2,7 @@
 REM
 REM Windows .bat file
 REM 
-REM @Nikos M. http://nikos-web-development.netai.net/ , https://github.com/foo123/
+REM https://github.com/foo123/scripts
 REM
 REM
 REM

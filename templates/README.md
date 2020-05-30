@@ -1,18 +1,13 @@
-##Functions to handle Templates in Bash
+## Functions to handle Templates in Bash
 
-###Usage
+### Usage
 
 * Include the *functions.bsh* into a shell script
 * call the functions to parse and output text based on templates and dynamic parameters (see comments)
 
 See also [Contemplate](https://github.com/foo123/Contemplate) a light-weight, flexible template engine with support for PHP, Javascript (Node and Browser) and Python
 
-###Dependencies
+### Dependencies
 
 * Ubuntu / Debian
 * Bash
-
-
-*URL* [Nikos Web Development](http://nikos-web-development.netai.net/ "Nikos Web Development")  
-*URL* [WorkingClassCode](http://workingclasscode.uphero.com/ "Working Class Code")  
-
